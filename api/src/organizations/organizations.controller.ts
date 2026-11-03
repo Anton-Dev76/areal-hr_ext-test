@@ -1,41 +1,24 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, ParseUUIDPipe } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
-import { Organization } from './organizations.entity';
+import { CreateOrganizationDto } from './dto/create-organization.dto';
+import { UpdateOrganizationDto } from './dto/update-organization.dto';
 
 @Controller('organizations')
 export class OrganizationsController {
   constructor(private readonly service: OrganizationsService) {}
 
   @Get()
-  findAll() {
-    return this.service.findAll();
-  }
+  findAll() { return this.service.findAll(); }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
-  }
+  findOne(@Param('id', ParseUUIDPipe) id: string) { return this.service.findOne(id); }
 
   @Post()
-  create(@Body() body: Partial<Organization>) {
-    return this.service.create(body);
-  }
+  create(@Body() body: CreateOrganizationDto) { return this.service.create(body); }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() body: Partial<Organization>) {
-    return this.service.update(id, body);
-  }
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() body: UpdateOrganizationDto) { return this.service.update(id, body); }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.service.remove(id);
-  }
+  remove(@Param('id', ParseUUIDPipe) id: string) { return this.service.remove(id); }
 }

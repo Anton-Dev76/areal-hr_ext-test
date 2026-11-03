@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, ParseUUIDPipe } from '@nestjs/common';
 import { DepartmentsService } from './departments.service';
-import { Department } from './departments.entity';
+import { CreateDepartmentDto } from './dto/create-department.dto';
+import { UpdateDepartmentDto } from './dto/update-department.dto';
 
 @Controller('departments')
 export class DepartmentsController {
@@ -10,14 +11,14 @@ export class DepartmentsController {
   findAll() { return this.service.findAll(); }
 
   @Get(':id')
-  findOne(@Param('id') id: string) { return this.service.findOne(id); }
+  findOne(@Param('id', ParseUUIDPipe) id: string) { return this.service.findOne(id); }
 
   @Post()
-  create(@Body() body: Partial<Department>) { return this.service.create(body); }
+  create(@Body() body: CreateDepartmentDto) { return this.service.create(body); }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() body: Partial<Department>) { return this.service.update(id, body); }
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() body: UpdateDepartmentDto) { return this.service.update(id, body); }
 
   @Delete(':id')
-  remove(@Param('id') id: string) { return this.service.remove(id); }
+  remove(@Param('id', ParseUUIDPipe) id: string) { return this.service.remove(id); }
 }
