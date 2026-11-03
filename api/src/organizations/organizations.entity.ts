@@ -11,11 +11,11 @@ export class Organization {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column()
   name: string;
 
   @Column({ nullable: true })
-  description: string;
+  comment: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

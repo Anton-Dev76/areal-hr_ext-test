@@ -17,6 +17,9 @@ export class Department {
   @Column()
   name: string;
 
+  @Column({ nullable: true })
+  comment: string;
+
   @Column({ name: 'organization_id' })
   organizationId: string;
 

@@ -2,12 +2,9 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  ManyToOne,
-  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Organization } from '../organizations/organizations.entity';
 
 @Entity('positions')
 export class Position {
@@ -16,13 +13,6 @@ export class Position {
 
   @Column()
   name: string;
-
-  @Column({ name: 'organization_id' })
-  organizationId: string;
-
-  @ManyToOne(() => Organization)
-  @JoinColumn({ name: 'organization_id' })
-  organization: Organization;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
