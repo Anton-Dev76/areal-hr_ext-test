@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { Department } from './departments.entity';
@@ -15,21 +19,53 @@ export class DepartmentsService {
     private readonly orgRepo: Repository<Organization>,
   ) {}
 
-  findAll() { return this.repo.find({ where: { deletedAt: IsNull() } }); }
+  findAll() {
+    return this.repo.find({
+      where: { deletedAt: IsNull() },
+    });
+  }
 
   async findOne(id: string) {
-    const dept = await this.repo.findOne({ where: { id, deletedAt: IsNull() } });
-    if (!dept) throw new NotFoundException('Отдел не найден');
+    const dept = await this.repo.findOne({
+      where: { id, deletedAt: IsNull() },
+    });
+
+    if (!dept) {
+      throw new NotFoundException('Отдел не найден');
+    }
+
     return dept;
   }
 
   async create(data: CreateDepartmentDto) {
-    const org = await this.orgRepo.findOne({ where: { id: data.organizationId, deletedAt: IsNull() } });
-    if (!org) throw new NotFoundException('Организация не найдена');
+    const org = await this.orgRepo.findOne({
+      where: {
+        id: data.organizationId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (!org) {
+      throw new NotFoundException('Организация не найдена');
+    }
 
     if (data.parentId) {
-      const parent = await this.repo.findOne({ where: { id: data.parentId, deletedAt: IsNull() } });
-      if (!parent) throw new NotFoundException('Родительский отдел не найден');
+      const parent = await this.repo.findOne({
+        where: {
+          id: data.parentId,
+          deletedAt: IsNull(),
+        },
+      });
+
+      if (!parent) {
+        throw new NotFoundException('Родительский отдел не найден');
+      }
+
+      if (parent.organizationId !== data.organizationId) {
+        throw new BadRequestException(
+          'Родительский отдел должен принадлежать той же организации',
+        );
+      }
     }
 
     const dept = this.repo.create(data);
@@ -39,16 +75,65 @@ export class DepartmentsService {
   async update(id: string, data: UpdateDepartmentDto) {
     const dept = await this.findOne(id);
 
+    const organizationId =
+      data.organizationId ?? dept.organizationId;
+
+    const parentId =
+      data.parentId ?? dept.parentId;
+
     if (data.organizationId) {
-      const org = await this.orgRepo.findOne({ where: { id: data.organizationId, deletedAt: IsNull() } });
-      if (!org) throw new NotFoundException('Организация не найдена');
+      const org = await this.orgRepo.findOne({
+        where: {
+          id: data.organizationId,
+          deletedAt: IsNull(),
+        },
+      });
+
+      if (!org) {
+        throw new NotFoundException('Организация не найдена');
+      }
     }
 
-    if (data.parentId) {
-      if (data.parentId === id) throw new BadRequestException('Отдел не может быть родителем самого себя');
-      const parent = await this.repo.findOne({ where: { id: data.parentId, deletedAt: IsNull() } });
-      if (!parent) throw new NotFoundException('Родительский отдел не найден');
-      await this.checkCycle(id, data.parentId);
+    if (parentId) {
+      if (parentId === id) {
+        throw new BadRequestException(
+          'Отдел не может быть родителем самого себя',
+        );
+      }
+
+      const parent = await this.repo.findOne({
+        where: {
+          id: parentId,
+          deletedAt: IsNull(),
+        },
+      });
+
+      if (!parent) {
+        throw new NotFoundException('Родительский отдел не найден');
+      }
+
+      if (parent.organizationId !== organizationId) {
+        throw new BadRequestException(
+          'Родительский отдел должен принадлежать той же организации',
+        );
+      }
+
+      await this.checkCycle(id, parentId);
+    }
+
+    if (data.organizationId && data.organizationId !== dept.organizationId) {
+      const children = await this.repo.count({
+        where: {
+          parentId: id,
+          deletedAt: IsNull(),
+        },
+      });
+
+      if (children > 0) {
+        throw new BadRequestException(
+          'Нельзя изменить организацию отдела, у которого есть дочерние отделы',
+        );
+      }
     }
 
     Object.assign(dept, data);
@@ -61,12 +146,33 @@ export class DepartmentsService {
     return this.repo.save(dept);
   }
 
-  private async checkCycle(deptId: string, newParentId: string) {
-    let currentId = newParentId;
+  private async checkCycle(
+    deptId: string,
+    newParentId: string,
+  ) {
+    let currentId: string | null = newParentId;
+    const visited = new Set<string>();
+
     while (currentId) {
-      if (currentId === deptId) throw new BadRequestException('Обнаружен циклический родитель');
-      const current = await this.repo.findOne({ where: { id: currentId, deletedAt: IsNull() } });
-      if (!current) break;
+      if (currentId === deptId || visited.has(currentId)) {
+        throw new BadRequestException(
+          'Обнаружен циклический родитель',
+        );
+      }
+
+      visited.add(currentId);
+
+      const current = await this.repo.findOne({
+        where: {
+          id: currentId,
+          deletedAt: IsNull(),
+        },
+      });
+
+      if (!current) {
+        break;
+      }
+
       currentId = current.parentId;
     }
   }
