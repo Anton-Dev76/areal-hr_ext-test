@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
@@ -15,6 +16,7 @@ export class DepartmentsService {
   constructor(
     @InjectRepository(Department)
     private readonly repo: Repository<Department>,
+
     @InjectRepository(Organization)
     private readonly orgRepo: Repository<Organization>,
   ) {}
@@ -69,6 +71,7 @@ export class DepartmentsService {
     }
 
     const dept = this.repo.create(data);
+
     return this.repo.save(dept);
   }
 
@@ -109,7 +112,9 @@ export class DepartmentsService {
       });
 
       if (!parent) {
-        throw new NotFoundException('Родительский отдел не найден');
+        throw new NotFoundException(
+          'Родительский отдел не найден',
+        );
       }
 
       if (parent.organizationId !== organizationId) {
@@ -121,28 +126,47 @@ export class DepartmentsService {
       await this.checkCycle(id, parentId);
     }
 
-    if (data.organizationId && data.organizationId !== dept.organizationId) {
-      const children = await this.repo.count({
+    if (
+      data.organizationId &&
+      data.organizationId !== dept.organizationId
+    ) {
+      const childrenCount = await this.repo.count({
         where: {
           parentId: id,
           deletedAt: IsNull(),
         },
       });
 
-      if (children > 0) {
-        throw new BadRequestException(
-          'Нельзя изменить организацию отдела, у которого есть дочерние отделы',
+      if (childrenCount > 0) {
+        throw new ConflictException(
+          'Нельзя изменить организацию отдела с дочерними отделами',
         );
       }
     }
 
     Object.assign(dept, data);
+
     return this.repo.save(dept);
   }
 
   async remove(id: string) {
     const dept = await this.findOne(id);
+
+    const childrenCount = await this.repo.count({
+      where: {
+        parentId: id,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (childrenCount > 0) {
+      throw new ConflictException(
+        'Нельзя удалить отдел, у которого есть активные дочерние отделы',
+      );
+    }
+
     dept.deletedAt = new Date();
+
     return this.repo.save(dept);
   }
 
